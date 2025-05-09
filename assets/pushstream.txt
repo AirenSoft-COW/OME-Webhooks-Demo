@@ -1,0 +1,29 @@
+# Thanks for https://sequencediagram.org/
+actor Streamer
+participant OME for Ingress
+database Control Server
+participant Origin OME
+rparticipant Web Page
+Streamer->OME for Ingress:RTMP\nWebRTC/WHIP\nSRT\nMPEG-2 TS\nRTSP Pull
+OME for Ingress->Control Server:[Admission Webhook]\nNotify ingress stream connected
+activate Control Server
+Control Server->OME for Ingress:[REST API]\nPush publishing request
+activate OME for Ingress
+box right of Control Server:Determine which Origin OME to push stream
+OME for Ingress->Origin OME:[Push Stream]\nRTMP\nSRT\nMPEG-2 TS
+activate Origin OME
+OME for Ingress-->Control Server:[REST API]\nPush publishing response
+deactivate OME for Ingress
+Control Server-->OME for Ingress:[Admission Webhook]\nResponse
+deactivate Control Server
+Origin OME->Control Server:[Transcode Webhook]\nRequest encoding configuration as needed
+activate Control Server
+Control Server-->Origin OME:[Transcode Webhook]\nResponse encoding configuration
+deactivate Control Server
+Origin OME->Origin OME:Transcode pull stream
+Web Page->Origin OME:[Playback Request]\n(LL)HLS\nWebRTC
+activate Web Page
+box right of Web Page:Player
+Origin OME-->Web Page:[Playback]\n(LL)HLS\nWebRTC
+deactivate Web Page
+deactivate Origin OME

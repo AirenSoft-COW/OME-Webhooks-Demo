@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebHooks Demo</title>
+  <style>
+    .player-wrapper {
+      width: 480px;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>WebHooks Demo</h3>
+
+  <section>
+    <h4>Ingress Stream</h4>
+    <div class="player-wrapper">
+      <div id="playerIngress"></div>
+    </div>
+    <button id="loadIngress">load ingress stream</button>
+    <button id="stopIngress">stop ingress stream</button>
+  </section>
+
+  <section>
+    <h4>Origin Stream</h4>
+    <div class="player-wrapper">
+      <div id="playerOrigin"></div>
+    </div>
+    <button id="loadOrigin">load origin stream</button>
+    <button id="stopOrigin">stop origin stream</button>
+  </section>
+
+  <script src="//cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js"></script>
+
+  <script>
+
+    const playerIngress = OvenPlayer.create('playerIngress', {
+      autoStart: true,
+      autoFallback: true,
+      mute: true,
+      sources: [{
+        type: "wertc",
+        file: "ws://localhost:3332/app/stream?transport=tcp"
+      }]
+    });
+
+    document.getElementById('loadIngress').addEventListener('click', () => {
+      playerIngress.load([{
+        type: "wertc",
+        file: "ws://localhost:3332/app/stream?transport=tcp"
+      }]);
+    });
+
+    document.getElementById('stopIngress').addEventListener('click', () => {
+      playerIngress.stop();
+    });
+
+    const playerOrigin = OvenPlayer.create('playerOrigin', {
+      autoStart: true,
+      autoFallback: true,
+      mute: true,
+      sources: [{
+        type: "hls",
+        file: "http://localhost:3333/app/stream/abr.m3u8"
+      }]
+    });
+
+    document.getElementById('loadOrigin').addEventListener('click', () => {
+      playerOrigin.load([{
+        type: "hls",
+        file: "http://localhost:3333/app/stream/abr.m3u8"
+      }]);
+    });
+
+    document.getElementById('stopOrigin').addEventListener('click', () => {
+      playerOrigin.stop();
+    });
+
+  </script>
+</body>
+
+</html>
