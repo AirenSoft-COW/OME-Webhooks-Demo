@@ -2,21 +2,19 @@ services:
   ingress-ome:
     image: airensoft/ovenmediaengine:dev
     ports:
-      # RTMP Ingress port
+      # Expose RTMP Ingress port to host machine
       - 1935:1935
       # Expose Rest API port for host machine for debugging
       - 8081:8081
-      # WebRTC Streaming ports 3332 for signaling and 10000-10005 for ICE and 3477 for TCP relay (TURN)
+      # WebRTC Streaming ports 3332 for signaling and 10000-10005 for ICE and 3478 for TCP relay (TURN) for ingress stream monitoring
       - 3332:3333
       - 10000-10005:10000-10005/udp
-      - 3477:3477
+      - 3478:3478
     volumes:
       - ./ingress_ome/conf:/opt/ovenmediaengine/bin/origin_conf
   origin-ome:
     image: airensoft/ovenmediaengine:dev
     ports:
-      # Expose RTMP Ingress port for host machine for debugging
-      - 1936:1935
       # Expose Rest API port for host machine for debugging
       - 8082:8081
       # (LL)HLS Streaming port
@@ -24,7 +22,10 @@ services:
     volumes:
       - ./origin_ome/conf:/opt/ovenmediaengine/bin/origin_conf
   control-server:
+    restart: always
     build: 
       dockerfile: ControlServer.Dockerfile
     ports:
       - 5000:5000
+    volumes:
+      - ./control_server:/app
