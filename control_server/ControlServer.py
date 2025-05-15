@@ -5,31 +5,18 @@ import base64
 import hmac
 import hashlib
 import json
+import threading
+import time
 
 from data import OutputProfiles
 
 app = Flask(__name__)
-# app.config.from_pyfile('config.cfg')
+app.config.from_pyfile('conf/config.cfg')
+
 socketio = SocketIO(app, cors_allowed_origins="*", async_handlers=True)
 
-INGRESS_OME = {
-    'host': 'ingress-ome',
-    'api_port': 8081,
-    'access_token': 'ome:default',
-    'vhost_name': 'default',
-    'app_name': 'app',
-    'admission_webhook_secret_key': '1234',
-}
-
-ORIGIN_OME = {
-    'host': 'origin-ome',
-    'api_port': 8081,
-    'access_token': 'ome:default',
-    'rtmp_ingress_port': 1935,
-    'vhost_name': 'default',
-    'app_name': 'app',
-    'transcode_webhook_secret_key': 'abc123!@#'
-}
+INGRESS_OME = app.config['INGRESS_OME']
+ORIGIN_OME = app.config['ORIGIN_OME']
 
 
 def verify_signature(signature, payload, secret_key):
@@ -168,6 +155,53 @@ def stop_push_stream(ingress_ome, ingress_stream_name):
         return (False, f'Error occurred while processing the request {e}')
 
 
+def create_pull_stream(ingress_ome, ingress_stream_name, origin_ome, pull_stream_name):
+    """
+    Create a pull stream on the Origin OME to retrieve the stream from the Ingress OME via OVT.
+    Reference: https://docs.ovenmediaengine.com/rest-api/v1/virtualhost/application/stream#create-stream-pull
+    """
+    try:
+        app.logger.info(
+            f'Create a pull stream on Origin OME({origin_ome["host"]}) to retrieve the stream from Ingress OME({ingress_ome["host"]}).')
+
+        data = {
+            'name': pull_stream_name,
+            'urls': [
+                f'ovt://{ingress_ome["host"]}:{ingress_ome["ovt_publisher_port"]}/{ingress_ome["app_name"]}/{ingress_stream_name}'
+            ],
+            "properties": {
+                'persistent': True,
+                'ignoreRtcpSRTimestamp': False
+            }
+        }
+
+        create_stream_api_url = f'/v1/vhosts/{origin_ome["vhost_name"]}/apps/{origin_ome["app_name"]}/streams'
+
+        response = request_post(origin_ome, create_stream_api_url, data)
+
+        if response.status_code == 200:
+            app.logger.info(
+                f'Create a pull stream request success. Response:\n{json.dumps(response.json(), indent=2)}')
+            return (True, 'success')
+        else:
+            app.logger.error(
+                f'Create a pull stream request failed. Response:\n{response.status_code}\n{json.dumps(response.json(), indent=2)}')
+            return (False, response.json().get('message', 'Unknown error'))
+
+    except Exception as e:
+        app.logger.error(f'Create a pull stream request failed: {e}')
+        return (False, f'Error occurred while processing the request {e}')
+
+
+def delayed_create_pull_stream(ingress_ome, ingress_stream_name, origin_ome, pull_stream_name, delay):
+    """
+    Delays the execution of create_pull_stream by the specified number of seconds.
+    """
+    time.sleep(delay)  # Delay execution
+    create_pull_stream(ingress_ome, ingress_stream_name,
+                       origin_ome, pull_stream_name)
+
+
 @app.route('/')
 def index():
     """
@@ -246,16 +280,27 @@ def admission_webhooks():
         stream_name = data['request']['url'].split('/')[-1]
 
         """
-        We will simply push the ingress stream to the Origin OME via RTMP using the same stream name.
+        We will simply reuse the ingress stream name for either a push or pull stream.
         """
+        # For a push stream
         succeed, message = start_push_stream(INGRESS_OME, stream_name,
                                              ORIGIN_OME, stream_name)
+
+        # For a pull stream
+        """
+        Since the stream is not created on the Ingress OME during the admission webhook stage, 
+        the Origin OME fails to pull the stream.
+        The structure for this part is still under discussion and will be finalized later.
+        For the demo, we only include the code for creating the pull stream on the Origin OME.
+        """
+        # succeed, message = create_pull_stream(INGRESS_OME, stream_name,
+        #                                       ORIGIN_OME, stream_name)
 
         if succeed:
             """
             In the demo, we simply set allow to true if the push is successful,
             allowing the input stream.
-            This behavior may change depending on the future architecture.
+            This behavior may change depending on the architecture decision.
             """
             return {'allowed': True}
         else:
