@@ -25,9 +25,9 @@
       </API>
     </Managers>
     <Providers>
-      <!-- <OVT>
+      <OVT>
         <WorkerCount>1</WorkerCount>
-      </OVT> -->
+      </OVT>
       <RTMP>
         <Port>${env:OME_RTMP_PROV_PORT:1935}</Port>
         <WorkerCount>1</WorkerCount>
@@ -109,7 +109,7 @@
             </OutputProfile>
           </OutputProfiles>
           <Providers>
-            <!-- <OVT /> -->
+            <OVT />
             <RTMP />
             <SRT />
           </Providers>

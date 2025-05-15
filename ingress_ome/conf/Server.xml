@@ -31,10 +31,12 @@
       </RTMP>
     </Providers>
     <Publishers>
-      <!-- <OVT>
+      <!-- OVT provider used by the Origin OME to pull a stream-->
+      <OVT>
         <Port>${env:OME_ORIGIN_PORT:9000}</Port>
         <WorkerCount>1</WorkerCount>
-      </OVT> -->
+      </OVT>
+      <!-- WebRTC publisher used to monitor incoming streams on the Ingress OME for demo purposes -->
       <WebRTC>
         <Signalling>
           <Port>3333</Port>
@@ -42,7 +44,7 @@
         </Signalling>
         <IceCandidates>
           <IceCandidate>*:10000-10005/udp</IceCandidate>
-          <TcpRelay>*:3477</TcpRelay>
+          <TcpRelay>*:3478</TcpRelay>
           <TcpForce>true</TcpForce>
           <TcpRelayWorkerCount>1</TcpRelayWorkerCount>
         </IceCandidates>
@@ -75,6 +77,7 @@
       <CrossDomains>
         <Url>*</Url>
       </CrossDomains>
+      <!-- Configure AdmissionWebhooks -->
       <AdmissionWebhooks>
         <ControlServerUrl>http://control-server:5000/v1/admission_webhooks</ControlServerUrl>
         <SecretKey>1234</SecretKey>
@@ -117,7 +120,7 @@
           <Publishers>
             <AppWorkerCount>1</AppWorkerCount>
             <StreamWorkerCount>8</StreamWorkerCount>
-            <!-- <OVT /> -->
+            <OVT />
             <WebRTC>
               <Timeout>30000</Timeout>
               <Rtx>false</Rtx>
