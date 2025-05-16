@@ -4,82 +4,236 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebHooks Demo</title>
+  <title>OvenMediaEngine WebHooks Demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
+  <link rel="icon" type="image/png" href="/static/image/ome.jpg" />
   <style>
+    .bg-ome-main-color {
+      background-color: #ffbb11;
+    }
+
     .player-wrapper {
-      width: 480px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    .log-wrapper {
+      min-height: calc(100vh - 8rem);
+      max-height: calc(100vh - 8rem);
+      overflow: auto;
     }
   </style>
 </head>
 
 <body>
-  <h3>WebHooks Demo</h3>
+  <!-- Nav -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand hstack gap-2" href="/">
+        <img src="/static/image/ome.jpg" alt="OvenMediaEngine Logo" />
+        OvenMediaEngine WebHooks Demo
+      </a>
+  </nav>
+  <!-- End Nav -->
+  <!-- Main -->
+  <main class="container my-4">
+    <div class="row gy-4">
+      <div class="col-12">
+        <div class="row row-cols-1 row-cols-md-2 gy-4">
+          <section class="col">
+            <div class="card">
+              <div class="card-header text-bg-dark">
+                Ingress OME
+              </div>
+              <div class="position-relative">
+                <div class="ratio ratio-16x9 text-bg-secondary d-flex justify-content-center align-items-center">
+                  Please load the player.
+                </div>
+                <div class="player-wrapper">
+                  <div id="playerIngress"></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-floating mt-2">
+              <input type="text" class="form-control form-control-sm"
+                value="ws://localhost:3332/app/stream?transport=tcp" id="ingressStreamUrl">
+              <label>Playback URL (WebRTC)</label>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-sm btn-dark col" id="loadIngress">Play</button>
+              <button type="button" class="btn btn-sm btn-dark col" id="stopIngress">Stop</button>
+            </div>
+          </section>
 
-  <section>
-    <h4>Ingress Stream</h4>
-    <div class="player-wrapper">
-      <div id="playerIngress"></div>
+          <section class="col">
+            <div class="card">
+              <div class="card-header text-bg-dark">
+                Origin OME
+              </div>
+              <div class="position-relative">
+                <div class="ratio ratio-16x9 text-bg-secondary d-flex justify-content-center align-items-center">
+                  Please load the player.
+                </div>
+                <div class="player-wrapper">
+                  <div id="playerOrigin"></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-floating mt-2">
+              <input type="text" class="form-control form-control-sm" value="http://localhost:3333/app/stream/abr.m3u8"
+                id="originStreamUrl">
+              <label>Playback URL (LLHLS)</label>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-sm btn-dark col" id="loadOrigin">Play</button>
+              <button type="button" class="btn btn-sm btn-dark col" id="stopOrigin">Stop</button>
+            </div>
+          </section>
+
+        </div>
+      </div>
+      <div class="col-12">
+        <!-- <div class="log-wrapper text-bg-dark p-2 rounded-3">
+          <div id="log-container"></div>
+        </div> -->
+        <div class="card">
+          <div class="card-header text-bg-dark">
+            Logs
+          </div>
+          <div class="card-body" style="min-height: 200px;">
+            <div id="log-container"></div>
+          </div>
+        </div>
+
+      </div>
     </div>
-    <button id="loadIngress">load ingress stream</button>
-    <button id="stopIngress">stop ingress stream</button>
-  </section>
 
-  <section>
-    <h4>Origin Stream</h4>
-    <div class="player-wrapper">
-      <div id="playerOrigin"></div>
+  </main>
+  <!-- End Main -->
+  <template id="log-template">
+    <div class="card mb-2" style="font-size: 0.85rem;">
+      <div class="card-header py-1 fw-bolder">
+        [[ title ]]
+      </div>
+      <div class="card-body pb-0">
+        <p class="fw-bold mb-1">Headers</p>
+        <pre class="text-muted">[[ headers ]]</pre>
+        <p class="fw-bold mb-1">Body</p>
+        <pre class="text-muted">[[ body ]]</pre>
+      </div>
     </div>
-    <button id="loadOrigin">load origin stream</button>
-    <button id="stopOrigin">stop origin stream</button>
-  </section>
+  </template>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"
+    integrity="sha512-eVL5Lb9al9FzgR63gDs1MxcDS2wFu3loYAgjIH0+Hg38tCS8Ag62dwKyH+wzDb+QauDpEZjXbMn11blw8cbTJQ=="
+    crossorigin="anonymous"></script>
   <script src="//cdn.jsdelivr.net/npm/hls.js@1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/ovenplayer@0.10.41/dist/ovenplayer.js"></script> -->
+  <script src="/static/js/ovenplayer/ovenplayer.js"></script>
+  <script src="/static/js/utils/utils.js"></script>
 
   <script>
 
-    const playerIngress = OvenPlayer.create('playerIngress', {
-      autoStart: true,
-      autoFallback: true,
-      mute: true,
-      sources: [{
-        type: "wertc",
-        file: "ws://localhost:3332/app/stream?transport=tcp"
-      }]
+    let socket = io({
+      transports: ['websocket']
     });
 
-    document.getElementById('loadIngress').addEventListener('click', () => {
-      playerIngress.load([{
+    const logContainer = document.getElementById('log-container');
+    const logTemplate = document.getElementById('log-template');
+
+    let ingressPlayer = null;
+    let originPlayer = null;
+
+    function createPlayer(playerId, source) {
+      return OvenPlayer.create(playerId, {
+        autoStart: true,
+        autoFallback: true,
+        mute: true,
+        sources: [source]
+      });
+    }
+
+    function removePlayer(player) {
+      if (player) {
+        player.remove();
+        player = null;
+      }
+    }
+
+    function loadIngressPlayer() {
+
+      removePlayer(ingressPlayer);
+
+      const source = {
         type: "wertc",
-        file: "ws://localhost:3332/app/stream?transport=tcp"
-      }]);
+        file: document.getElementById('ingressStreamUrl').value
+      };
+
+      ingressPlayer = createPlayer('playerIngress', source);
+    }
+
+    function loadOriginPlayer() {
+
+      removePlayer(originPlayer);
+
+      const source = {
+        type: "hls",
+        file: document.getElementById('originStreamUrl').value
+      };
+
+      originPlayer = createPlayer('playerOrigin', source);
+
+      originPlayer.on('stateChanged', (event) => {
+        console.log('State Changed:', event);
+        console.log('State:', event);
+        if (event.newstate === 'stalled') {
+          console.log('Seeking to liveSyncPosition:', originPlayer.getMseInstance().liveSyncPosition);
+          originPlayer.seek(originPlayer.getMseInstance().liveSyncPosition);
+        }
+      });
+    }
+
+    document.getElementById('loadIngress').addEventListener('click', () => {
+      loadIngressPlayer();
     });
 
     document.getElementById('stopIngress').addEventListener('click', () => {
-      playerIngress.stop();
+      removePlayer(ingressPlayer);
     });
 
-    const playerOrigin = OvenPlayer.create('playerOrigin', {
-      autoStart: true,
-      autoFallback: true,
-      mute: true,
-      sources: [{
-        type: "hls",
-        file: "http://localhost:3333/app/stream/abr.m3u8"
-      }]
-    });
 
     document.getElementById('loadOrigin').addEventListener('click', () => {
-      playerOrigin.load([{
-        type: "hls",
-        file: "http://localhost:3333/app/stream/abr.m3u8"
-      }]);
+      loadOriginPlayer();
     });
 
     document.getElementById('stopOrigin').addEventListener('click', () => {
-      playerOrigin.stop();
+      removePlayer(originPlayer);
     });
 
+    function logMessage(message) {
+      console.log(message);
+      console.log(message.payload);
+      const templateData = {
+        title: message.title,
+        headers: JSON.stringify(message.payload.headers, null, 2),
+        body: JSON.stringify(message.payload.body, null, 2)
+      }
+
+      const logHtml = renderTemplate(logTemplate, templateData);
+      logContainer.innerHTML += logHtml;
+    }
+
+    socket.on("log", (message) => {
+      logMessage(message);
+    });
   </script>
 </body>
 

@@ -1,5 +1,8 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, make_response
 from flask_socketio import SocketIO, emit
+import logging
+from logging.handlers import RotatingFileHandler
+import os
 import requests
 import base64
 import hmac
@@ -7,16 +10,45 @@ import hashlib
 import json
 import threading
 import time
+from urllib.parse import quote
 
 from data import OutputProfiles
 
 app = Flask(__name__)
 app.config.from_pyfile('conf/config.cfg')
 
+os.makedirs(os.path.join(os.path.dirname(__file__), 'logs'), exist_ok=True)
+log_file = os.path.join(os.path.dirname(__file__),
+                        'logs', 'control-server.log')
+
+file_handler = RotatingFileHandler(
+    log_file, maxBytes=10 * 1024 * 1024, backupCount=5)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
+
 socketio = SocketIO(app, cors_allowed_origins="*", async_handlers=True)
 
 INGRESS_OME = app.config['INGRESS_OME']
 ORIGIN_OME = app.config['ORIGIN_OME']
+
+
+def get_req_resp_info(r):
+    return {
+        'headers': dict(r.headers),
+        'body': r.get_json(silent=True)
+    }
+
+
+def emit_log(message, payload):
+    payload = {
+        'title': message,
+        'payload': payload,
+    }
+    socketio.emit('log', payload)
 
 
 def verify_signature(signature, payload, secret_key):
@@ -69,10 +101,20 @@ def request_get(host, path):
     return response
 
 
-def request_post(host, path, data):
+def request_post(host, path, data, message=None):
 
     url = get_request_url(host, path)
     headers = get_ome_auth_header(host['access_token'])
+
+    log_message = ''
+
+    if message is not None:
+        log_message = f'{message} '
+
+    emit_log(f'[REQUEST] {log_message}POST {url}', {
+        'headers': headers,
+        'body': data
+    })
 
     app.logger.info(f'POST request URL: {url}')
     app.logger.info(f'POST request headers: {headers}')
@@ -80,6 +122,12 @@ def request_post(host, path, data):
     app.logger.info(f'POST request data:\n{json.dumps(data, indent=2)}')
 
     response = requests.post(url, headers=headers, json=data)
+
+    emit_log(f'[RESPONSE] {log_message}({response.status_code}) ', {
+        'headers': dict(response.headers),
+        'body': response.json()
+    })
+
     return response
 
 
@@ -93,15 +141,28 @@ def start_push_stream(ingress_ome, ingress_stream_name, origin_ome, origin_strea
         app.logger.info(
             f'Start push stream request from Ingress OME({ingress_ome["host"]}) to Origin OME({origin_ome["host"]}).')
 
+        # RTMP Push
+        # data = {
+        #     # Simply we generate a UUID with the prefix push_ for 'id' field.
+        #     'id': f'push_{ingress_stream_name}',
+        #     'stream': {
+        #         'name': ingress_stream_name
+        #     },
+        #     'protocol': 'rtmp',
+        #     'url': f'rtmp://{origin_ome["host"]}:{origin_ome["rtmp_ingress_port"]}/{origin_ome["app_name"]}',
+        #     'streamKey': origin_stream_name,
+        # }
+
+        # SRT Push
+        stream_id = f'srt://{origin_ome["host"]}:{origin_ome["srt_ingress_port"]}/{origin_ome["app_name"]}/{origin_stream_name}'
         data = {
             # Simply we generate a UUID with the prefix push_ for 'id' field.
             'id': f'push_{ingress_stream_name}',
             'stream': {
                 'name': ingress_stream_name
             },
-            'protocol': 'rtmp',
-            'url': f'rtmp://{origin_ome["host"]}:{origin_ome["rtmp_ingress_port"]}/{origin_ome["app_name"]}',
-            'streamKey': origin_stream_name,
+            'protocol': 'srt',
+            'url': f'srt://{origin_ome["host"]}:{origin_ome["srt_ingress_port"]}?streamid={quote(stream_id)}',
         }
 
         push_api_url = f'/v1/vhosts/{ingress_ome["vhost_name"]}/apps/{ingress_ome["app_name"]}:startPush'
@@ -177,7 +238,8 @@ def create_pull_stream(ingress_ome, ingress_stream_name, origin_ome, pull_stream
 
         create_stream_api_url = f'/v1/vhosts/{origin_ome["vhost_name"]}/apps/{origin_ome["app_name"]}/streams'
 
-        response = request_post(origin_ome, create_stream_api_url, data)
+        response = request_post(
+            origin_ome, create_stream_api_url, data, 'Create pull stream')
 
         if response.status_code == 200:
             app.logger.info(
@@ -237,6 +299,9 @@ def admission_webhooks():
     OME calls the admission webhook only when an RTMP input is opened.
     """
 
+    emit_log('Admission Webhooks request from Ingress OME',
+             get_req_resp_info(request))
+
     header = request.headers
     app.logger.info(f'Admission webhook received header:\n {header}')
 
@@ -282,54 +347,66 @@ def admission_webhooks():
         """
         We will simply reuse the ingress stream name for either a push or pull stream.
         """
+
         # For a push stream
-        succeed, message = start_push_stream(INGRESS_OME, stream_name,
-                                             ORIGIN_OME, stream_name)
+        #
+        # succeed, message = start_push_stream(INGRESS_OME, stream_name,
+        #                                      ORIGIN_OME, stream_name)
+
+        # if succeed:
+        #     """
+        #     In the demo, we simply set allow to true if the push is successful,
+        #     allowing the input stream.
+        #     This behavior may change depending on the architecture decision.
+        #     """
+        #     return {'allowed': True}
+        # else:
+        #     """
+        #     Handle some error cases here.
+        #     """
+        #     return {
+        #         'allowed': False,
+        #         'reason': message
+        #     }
 
         # For a pull stream
         """
+        NOTE:
         Since the stream is not created on the Ingress OME during the admission webhook stage, 
         the Origin OME fails to pull the stream.
         The structure for this part is still under discussion and will be finalized later.
-        For the demo, we only include the code for creating the pull stream on the Origin OME.
+        
+        In the demo, we temporarily return {allowed: true} from the admission webhook to allow the Ingress stream to be created.
+        Then, we delay the pull stream creation request by 3 seconds.
         """
-        # succeed, message = create_pull_stream(INGRESS_OME, stream_name,
-        #                                       ORIGIN_OME, stream_name)
+        threading.Thread(target=delayed_create_pull_stream, args=(
+            INGRESS_OME, stream_name, ORIGIN_OME, stream_name, 3)).start()
 
-        if succeed:
-            """
-            In the demo, we simply set allow to true if the push is successful,
-            allowing the input stream.
-            This behavior may change depending on the architecture decision.
-            """
-            return {'allowed': True}
-        else:
-            """
-            Handle some error cases here.
-            """
-            return {
-                'allowed': False,
-                'reason': message
-            }
+        response = make_response({
+            'allowed': True,
+        })
+
+        emit_log('Admission Webhooks response to Ingress OME',
+                 get_req_resp_info(response))
+
+        return response
 
     else:
         """
         handle data['request']['status'] == 'closing':
         """
 
-        stream_name = data['request']['url'].split('/')[-1]
-
-        """
-        Stops the push stream to the Origin OME.
-        """
-        stop_push_stream(INGRESS_OME, stream_name)
-
         """
         response-for-closing-status
         #response-for-closing-status
         Reference: https://docs.ovenmediaengine.com/access-control/admission-webhooks
         """
-        return {}
+
+        response = make_response({})
+        emit_log('[RESPONSE] Admission Webhooks response to OME',
+                 get_req_resp_info(response))
+
+        return response
 
 
 @app.route('/v1/transcode_webhook', methods=['POST'])
@@ -338,6 +415,9 @@ def transcode_webhook():
     Transcode webhook for Origin OME.
     Reference: https://docs.ovenmediaengine.com/transcoding/transcodewebhook
     """
+
+    emit_log('Transcode webhook request from Origin OME',
+             get_req_resp_info(request))
 
     header = request.headers
     app.logger.info(f'Transcode webhook received header:\n {header}')
@@ -387,12 +467,18 @@ def transcode_webhook():
     There are no encoding settings in the <OutputProfiles> section of the Origin OME's Server.xml.
     We can inject ABR encoding settings using the transcoding webhook.
     """
+
     output_profiles = OutputProfiles.HIGH_RES_ABR
 
-    return {
+    response = make_response({
         'allowed': True,
         'outputProfiles': output_profiles,
-    }
+    })
+
+    emit_log('Transcode webhook response to Origin OME',
+             get_req_resp_info(response))
+
+    return response
 
 
 if __name__ == '__main__':

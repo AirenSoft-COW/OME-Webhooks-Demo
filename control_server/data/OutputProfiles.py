@@ -13,29 +13,18 @@ HIGH_RES_ABR = {
             'outputStreamName': '${OriginStreamName}',
             'playlists': [
                 {
-                    'fileName': 'passthrough',
-                    'name': 'Passthrough',
-                    'renditions': [
-                        {
-                            'name': 'bypass',
-                            'audio': 'bypass_audio',
-                            'video': 'bypass_video'
-                        }
-                    ]
-                },
-                {
                     'fileName': 'abr',
                     'name': 'ABR',
                     'renditions': [
                         {
-                            'name': '1280p',
-                            'audio': 'audio_aac',
-                            'video': 'video_1280'
-                        },
-                        {
                             'name': '720p',
                             'audio': 'audio_aac',
-                            'video': 'video_720'
+                            'video': 'video_720p'
+                        },
+                        {
+                            'name': '480p',
+                            'audio': 'audio_aac',
+                            'video': 'video_480p'
                         }
                     ]
                 }
@@ -65,22 +54,22 @@ HIGH_RES_ABR = {
                         'bypass': True
                     },
                     {
-                        'name': 'video_1280',
+                        'name': 'video_720p',
                         'codec': 'h264',
-                        'width': 1920,
-                        'height': 1080,
-                        'bitrate': 5120000,
+                        'width': 1280,
+                        'height': 720,
+                        'bitrate': 2048000,
                         'framerate': 30,
                         'keyFrameInterval': 30,
                         'preset': 'faster',
                         'bFrames': 0
                     },
                     {
-                        'name': 'video_720',
+                        'name': 'video_480p',
                         'codec': 'h264',
-                        'width': 1280,
-                        'height': 720,
-                        'bitrate': 2024000,
+                        'width': 854,
+                        'height': 480,
+                        'bitrate': 1024000,
                         'framerate': 30,
                         'keyFrameInterval': 30,
                         'preset': 'faster',
