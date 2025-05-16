@@ -1,1 +1,0 @@
-docker-compose build control-server && docker-compose up

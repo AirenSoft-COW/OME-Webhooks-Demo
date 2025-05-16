@@ -12,6 +12,7 @@ services:
       - 3478:3478
     volumes:
       - ./ingress_ome/conf:/opt/ovenmediaengine/bin/origin_conf
+      - ./ingress_ome/logs:/var/log/ovenmediaengine
   origin-ome:
     image: airensoft/ovenmediaengine:dev
     ports:
@@ -21,6 +22,7 @@ services:
       - 3333:3333
     volumes:
       - ./origin_ome/conf:/opt/ovenmediaengine/bin/origin_conf
+      - ./origin_ome/logs:/var/log/ovenmediaengine
   control-server:
     restart: always
     build: 
