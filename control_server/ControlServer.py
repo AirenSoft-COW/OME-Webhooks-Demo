@@ -270,9 +270,25 @@ def index():
     router for serving demo web page
     """
 
-    request_get(INGRESS_OME, '/v1/vhosts/default/apps')
-
     return render_template('index.html')
+
+
+@app.route('/redoc')
+def redoc():
+
+    return render_template('redoc.html')
+
+
+@app.route('/swagger')
+def swagger():
+
+    return render_template('swagger.html')
+
+
+@app.route('/rapidoc')
+def rapidoc():
+
+    return render_template('rapidoc.html')
 
 
 @app.route('/v1/admission_webhooks', methods=['POST'])
