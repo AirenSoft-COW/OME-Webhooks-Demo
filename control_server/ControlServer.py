@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, make_response
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 import requests
+import requests_openapi
 import base64
 import hmac
 import hashlib
@@ -34,6 +35,21 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_handlers=True)
 
 INGRESS_OME = app.config['INGRESS_OME']
 ORIGIN_OME = app.config['ORIGIN_OME']
+
+openapi_client = requests_openapi.Client().load_spec_from_url(
+    'https://raw.githubusercontent.com/AirenSoft/OvenMediaEngine/refs/heads/master/api/ome.yml')
+
+
+def get_openapi_client(host):
+    """
+    Returns the OpenAPI client instance.
+    """
+    server = requests_openapi.Server(
+        url=f'http://{host["host"]}:{host["api_port"]}/v1')
+    openapi_client.set_server(server)
+    openapi_client.requestor.headers.update(
+        get_ome_auth_header(host['access_token']))
+    return openapi_client
 
 
 def get_req_resp_info(r):
@@ -238,8 +254,32 @@ def create_pull_stream(ingress_ome, ingress_stream_name, origin_ome, pull_stream
 
         create_stream_api_url = f'/v1/vhosts/{origin_ome["vhost_name"]}/apps/{origin_ome["app_name"]}/streams'
 
-        response = request_post(
-            origin_ome, create_stream_api_url, data, 'Create pull stream')
+        # response = request_post(
+        #     origin_ome, create_stream_api_url, data, 'Create pull stream')
+
+        # log_message = 'Create pull stream'
+
+        # emit_log(f'[REQUEST] {log_message}POST {url}', {
+        #     'headers': headers,
+        #     'body': data
+        # })
+
+        log_message = 'Create pull stream request to Origin OME'
+        url = get_request_url(origin_ome, create_stream_api_url)
+        headers = get_ome_auth_header(origin_ome['access_token'])
+
+        emit_log(f'[REQUEST] {log_message}POST {url}', {
+            'headers': headers,
+            'body': data
+        })
+
+        response = get_openapi_client(
+            origin_ome).VHostAppStreamsPost(vhost=origin_ome["vhost_name"], app=origin_ome["app_name"], json=data)
+
+        emit_log(f'[RESPONSE] {log_message}({response.status_code}) ', {
+            'headers': dict(response.headers),
+            'body': response.json()
+        })
 
         if response.status_code == 200:
             app.logger.info(
@@ -269,7 +309,6 @@ def index():
     """
     router for serving demo web page
     """
-
     return render_template('index.html')
 
 

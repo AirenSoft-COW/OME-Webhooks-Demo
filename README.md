@@ -15,7 +15,7 @@ This project demonstrates how to use OvenMediaEngine's Admission Webhook to enab
 After pulling/cloning the project, create the containers with the following 
 command:
 ```
-docker compose up (-d)
+docker build && docker compose up (-d)
 ```
 
 This Docker Compose file creates the following three containers.
@@ -69,6 +69,13 @@ The OME configurations can be modified through the Server.xml files located in t
 ### Modify Control Server Source Code
 
 Changes to files under the control_server directory take effect immediately. Feel free to test various scenarios.
+
+
+## OvenMediaEngine Rest API Interactive documentation
+
+- Redoc: http://localhost:5000/redoc
+- Swagger: http://localhost:5000/swagger
+- Rapidoc: http://localhost:5000/rapidoc
 
 ## Architecture
 
